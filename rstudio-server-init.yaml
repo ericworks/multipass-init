@@ -1,0 +1,45 @@
+
+
+# create a user password, so that rstudio-server can login.
+# password is created by: mkpasswd --method=SHA-512 --rounds=4096
+# note: the quote symbol here for `hashed_passwd` is mandatory! 
+
+users:
+  - default
+  - name: rstudio
+    groups: users
+    lock-passwd: false
+    hashed_passwd: '$6$rounds=4096$7DUylOV1l9e$U1ErNQG07xwU8PHBIehrB47QwRP16OsGk0XmNWEEj1FEM5FjPgPtV2ekGo2MPbVTWv1LxfVZRKde40t2Zm1OO/'
+
+write_files:
+- content: |
+    # This is a RStudio-server cloud-init config file.
+    It should download and run a RStudio-server instance on port 8787.
+    IMPORTANT NOTE: RStudio-server rely on libssl v0.3
+    Hence it can only be installed on ubuntu focal, which has that dependency satisified.
+    Ubuntu versions after `focal` will have libssl 1.0.0 installed and the installation will fail because of dependency issue.
+  path: /home/rstudio/server_desc.txt
+  owner: rstudio:rstudio
+  permissions: '0777'
+
+package_update: true
+
+packages:
+  - python3
+  - pip
+  - vim
+  - r-base
+  - gdebi-core
+  - libssl-dev
+
+bootcmd:
+  - echo helloworld
+
+runcmd:
+  - sudo chown -R ubuntu:ubuntu /home/ubuntu
+  - sudo chown -R rstudio:rstudio /home/rstudio
+
+  # install and run rstudio-server, default port: 8787, default logins to ubuntu user logins
+  - [ mkdir, /run/rstudio-server/ ]
+  - [ wget, "https://download2.rstudio.org/server/bionic/amd64/rstudio-server-2022.07.0-548-amd64.deb", -O, /run/rstudio-server/install.deb ]
+  - [sudo, gdebi, /run/rstudio-server/install.deb, -nq ]

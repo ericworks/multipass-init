@@ -1,0 +1,34 @@
+
+write_files:
+- content: |
+    # This is a Jupyter Notebook server cloud-init config.
+    It should download and launch a jupyter notebook instance on port 8888.
+    Additionally installed extensions:
+    - r-base
+    - R kernel support for Jupyter Notebook
+
+  path: /home/ubuntu/server_desc.txt
+  owner: ubuntu:ubuntu
+  permissions: '0777'
+
+package_update: true
+
+packages:
+  - python3
+  - pip
+  - vim
+  - r-base
+
+bootcmd:
+  - echo helloworld
+
+runcmd:
+  - sudo chown -R ubuntu:ubuntu /home/ubuntu
+  # install and run jupyter notebook, default port 8888
+  - sudo pip install jupyterlab
+  - sudo pip install notebook
+  # Install R kernel for jupyter. first install globally, and then enable for all users.
+  - sudo Rscript -e "install.packages('IRkernel')"
+  - sudo Rscript -e "IRkernel::installspec(user = FALSE)"
+  # Start Jupyter Notebook instance
+  - sudo -u ubuntu screen -dmS jupyter bash -c "jupyter notebook --ip 0.0.0.0 --port 8888 --NotebookApp.token='' --NotebookApp.password='' ; bash"

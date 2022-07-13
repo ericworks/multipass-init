@@ -1,0 +1,43 @@
+# VSCode cloud init.
+
+write_files:
+- content: |
+    # This is a Visual Studio Code Server cloud-init config.
+    It should download and launch a code-server instance on port 8000.
+    Installed extensions:
+    - vscode-django
+    - python
+    #EOF
+  path: /home/ubuntu/server_desc.txt
+  owner: ubuntu:ubuntu
+  permissions: '0777'
+
+package_update: true
+
+packages:
+  - python3
+  - pip
+  - vim
+
+# bootcmd defines several commands that run every startup.
+# it's executed at a pretty early stage during boot process.
+# do not rely on this to execute some program depends on userspace program since 
+# they're usually not started yet. 
+
+bootcmd:
+  - echo helloworld
+  
+# runcmd defines commands that execute only on first setup process.
+
+runcmd:
+  - sudo chown -R ubuntu:ubuntu /home/ubuntu
+
+  # install and run code server
+  - mkdir /run/codeserver/
+  - [ wget, "https://aka.ms/install-vscode-server/setup.sh", -O, /run/codeserver/setup.sh ]
+  - [ sh, /run/codeserver/setup.sh ]
+
+  # install code server extensions and run on port 8000
+  - sudo -u ubuntu code-server --accept-server-license-terms --disable-telemetry serve-local --install-extension ms-python.python@2022.4.0
+  - sudo -u ubuntu code-server --accept-server-license-terms --disable-telemetry serve-local --install-extension batisteo.vscode-django
+  - sudo -u ubuntu screen -dmS codeserver bash -c "code-server --accept-server-license-terms --disable-telemetry serve-local --without-connection-token --host '0.0.0.0'  --port 8000 ; bash"
