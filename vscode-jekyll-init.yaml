@@ -1,0 +1,134 @@
+# based on VSCode cloud init.
+
+write_files:
+# Server description file, print this message for each bash terminal.
+- content: |
+    Server Conf Desc
+    ========================
+    this cloud-init config script aim to start a local dev vm that reloads
+    and regenerate Jekyll site everytime there's a change in local folder. 
+    This vm is based on a Visual Studio Code Server cloud-init config.
+    It should download and launch a code-server instance on port 8000.
+    Plus ruby and Jekyll installed.
+    
+    Installed vscode-server extensions: None
+    
+    Jekyll Desc
+    ========================
+    For a common jekyll site that developed with bundle, first clone the repo.
+    Second, `cd` into that repo, run `bundle install` to install missing deps
+    Finally, run `bundle exec jekyll serve --livereload --host 0.0.0.0`. This
+    Command is shorten with `run-jekyll`, `check ~/.bashrc`. Optionally, 
+    append `--detach` to command to serve the site in background.
+    
+    To find out more options, run `bundle exec jekyll serve --help`.
+    
+    Note: this cloud-init install the latest Jekyll during init process. It may
+    cause a dependency version conflict for some old Jekyll project. In that
+    case, uninstall the Jekyll and then run `bundle install` to install the
+    required version of Jekyll.
+  path: /home/ubuntu/server-desc.txt
+  defer: true
+  owner: ubuntu:ubuntu
+  permissions: '0755'
+  
+- content: |
+    # show server description evertime bash terminal is running.
+    cat /home/ubuntu/server-desc.txt
+  path: /etc/bash.bashrc
+  append: true
+  owner: root:root
+  defer: true
+  permissions: '0755'
+
+# Systemd unit configuration file to auto start vscode-server on failure and
+# on startup
+- content: | 
+    [Unit]
+    Description=VSCode Server auto start
+    Wants=network.target
+    After=syslog.target network-online.target
+    
+    [Service]
+    User=ubuntu
+    ExecStart=code-server \
+        --accept-server-license-terms \
+        --disable-telemetry \
+        serve-local \
+        --without-connection-token \
+        --host '0.0.0.0'  \
+        --port 8000
+    Restart=always
+    RestartSec=10
+    
+    [Install]
+    WantedBy=multi-user.target
+  path: /etc/systemd/system/vscode-server.service
+  owner: root:root
+  permissions: '0755'
+
+# Jekyll installation script, 
+# copied from official Jekyll installation guide.
+#
+- content: |
+    #!/bin/bash
+    export GEM_HOME="$HOME/gems"
+    export PATH="$HOME/gems/bin:$PATH"
+    gem install jekyll bundler
+  path: /home/ubuntu/install-jekyll.bash
+  owner: ubuntu:ubuntu
+  defer: true
+  permission: '0777'
+  
+# Define gems installation path in `.bashrc` file.
+# This is recommended by official Jekyll installation guide.
+#
+- content: |
+    # Install Ruby Gems to ~/gems
+    export GEM_HOME="$HOME/gems"
+    export PATH="$HOME/gems/bin:$PATH"
+    alias run-jekyll="bundle exec jekyll serve --livereload --host 0.0.0.0"
+  path: /home/ubuntu/.bashrc
+  append: true
+  defer: true
+  owner: ubuntu:ubuntu
+
+package_update: true
+
+packages:
+  - python3
+  - pip
+  - vim
+  # Jekyll packages
+  - ruby-full
+  - build-essential
+  - zlib1g-dev
+  
+
+# bootcmd defines several commands that run every startup.
+# it's executed at a pretty early stage during boot process.
+# do not rely on this to execute some program depends on userspace program 
+# since they're usually not started yet. 
+
+bootcmd:
+  - echo helloworld
+  
+# runcmd defines commands that execute only on first setup process.
+
+runcmd:
+  - sudo chown -R ubuntu:ubuntu /home/ubuntu
+
+  # install and run code server
+  - mkdir /run/codeserver/
+  - [ wget, 
+        "https://aka.ms/install-vscode-server/setup.sh", 
+        -O, /run/codeserver/setup.sh ]
+  - [ sh, /run/codeserver/setup.sh ]
+
+  # install code server extensions and run on port 8000
+  - sudo systemctl daemon-reload
+  - sudo systemctl enable vscode-server.service
+  - sudo systemctl start --no-block vscode-server.service
+  - sudo -u ubuntu bash /home/ubuntu/install-jekyll.bash
+  
+  
