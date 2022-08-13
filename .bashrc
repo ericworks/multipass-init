@@ -12,6 +12,7 @@ alias mp-sync-host="multipass list --format json | sudo python3 $MULTIPASS_INIT_
 function create-vm() {
 
   multipass launch -m 8G -c 4 -d 16G jammy $@
+  echo "Request root permission for syncing vm hostnames in /etc/hosts"
   mp-sync-host
 
 }
