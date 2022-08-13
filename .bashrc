@@ -43,3 +43,7 @@ function create-docker() {
   create-vm -d 24G --cloud-init $MULTIPASS_INIT_PATH_PREFIX/containers/docker-base-init.yaml $@
 }
 
+create-rclone () {
+    create-vm -m 2G -c 1 -d 32G --cloud-init $MULTIPASS_INIT_PATH_PREFIX/containers/docker-rclone-init.yaml.secret $@
+}
+

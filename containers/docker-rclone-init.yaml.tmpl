@@ -1,0 +1,115 @@
+# THERE ARE FILES AND CONFIG NEED TO FILL. READ CAREFULLY BEFORE USE.
+# WHEN YOU'RE READY TO TEST, DON'T FORGET TO
+# RENAME THIS FILE TO <docker-rclone-init.yaml.secret>
+#                                             ```````
+# ALTERNATIVELY, YOU CAN CHANGE THE <.bashrc> FILE IN THE PROJECT FOLDER.
+#                                    ```````
+# USE IT AT YOUR OWN RISK. THIS FILE PROVIDE NO WARRANTY.
+#
+# [TODO] Load Rclone config file from external source it should be isolated.
+# ==========================================================================
+
+
+write_files:
+- path: /home/ubuntu/server_desc.txt
+  content: |
+    # This is a docker cloud-init config.
+    It should download and launch the latest docker and docker-compose program.
+    Besides, on first boot, it will run a rclone container from dockerhub.
+  owner: ubuntu:ubuntu
+  permissions: '0777'
+  defer: true
+  
+# you need to fill this rclone config file after startup.
+# ````````````````````````````````````````````````````````
+- content: |
+    FILL RCLONE CONFIG HERE, IT WILL AUTO START AFTERWARDS
+  path: /home/ubuntu/rclone/rclone.conf.tmpl
+  owner: ubuntu:ubuntu
+  permissions: '0700'
+  defer: true
+
+# This is the default rclone config. check rclone docs for reference.
+# `````````````````````````````````````````````````````````````````````
+- path: /home/ubuntu/rclone/.env
+  content: |
+    RCLONE_USER=ubuntu:ubuntu
+    RCLONE_VFS_CACHE_MAX_SIZE=8G
+    RCLONE_DIR_CACHE_TIME=720h
+    RCLONE_VFS_CACHE_MAX_AGE=720h
+    RCLONE_CONFIG=/rclone.conf
+    RCLONE_LOG_LEVEL=INFO
+    RCLONE_CACHE_DIR=/data/cache/
+    RCLONE_VFS_CACHE_MODE=full
+    RCLONE_VFS_WRITE_BACK=180s
+    RCLONE_ONEDRIVE_CHUNK_SIZE=250m
+    RCLONE_USER=ubuntu
+    RCLONE_PASS=ubuntu
+  owner: ubuntu:ubuntu
+  permissions: '0700'
+  defer: true
+
+
+# This file will query the rclone.conf file. Once filled, bring up the container
+# ``````````````````````````````````````````````````````````````````````````````
+- path: /home/ubuntu/startup.sh
+  content: |
+    #!/bin/sh
+    while [ "$(cat /home/ubuntu/rclone/rclone.conf | wc -l)" -le 1 ]
+    do
+      sleep 5
+    done
+    docker-compose -f /home/ubuntu/rclone/docker-compose.yml up -d
+  owner: ubuntu:ubuntu
+  permissions: '0777'
+  defer: true
+  
+# Docker Compose file, you can append multiple service here or on demand.
+# ```````````````````````````````````````````````````````````````````````
+- path: /home/ubuntu/rclone/docker-compose.yml
+  content: |
+    version: '3.3'
+    services:
+      rc-tmpl:
+        container_name: rc-tmpl
+        volumes:
+          - ./rclone.conf:/rclone.conf
+        ports:
+          - '8911:8911'
+        command: serve webdav remote:/ --addr 0.0.0.0:8911
+        env_file: .env
+        environment:
+          - RCLONE_VFS_CACHE_MAX_SIZE=8G
+        image: rclone/rclone
+        restart: always
+      
+  owner: ubuntu:ubuntu
+  permissions: '0700'
+  defer: true
+  
+
+package_update: true
+
+packages:
+  - vim
+  - ca-certificates
+  - curl
+  - gnupg
+  - lsb-release
+
+bootcmd:
+  - echo helloworld
+
+runcmd:
+  - sudo chown -R ubuntu:ubuntu /home/ubuntu
+  - sudo mkdir -p /etc/apt/keyrings
+  - sudo groupadd docker
+  - sudo usermod -aG docker ubuntu
+  - curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+  - echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+  - sudo apt-get update
+  - sudo apt-get install docker-ce docker-ce-cli containerd.io docker-compose-plugin docker-compose -y
+  - sudo -u ubuntu screen -dmS startup bash -c "bash /home/ubuntu/startup.sh ; echo 'completed.' ; bash"
+  
+  
+  
